@@ -1,0 +1,337 @@
+---
+title: "Introduction"
+author: "Shuyi Qiu"
+format: html
+editor: visual
+embed-resources: true
+toc: true
+---
+
+# Environment Setup
+
+This manual is made to introduce the use of regular expressions in R for the purpose of analyzing dataset of text. Currently, two main ways are employed for this kind of analysis: one is through the functions in `base` R, one is through the well-written package `stringr`. We will cover these two main ways in the following sections when illustrating patterns.
+
+Before we go further into the detail of regular expressions, below packages are required to install and load if you would like to get your hands dirty.
+
+\[test\]
+
+```{r}
+#| warning: false
+library(stringr)
+library(tidyverse)
+```
+
+# What is Regular Expression?
+
+(Leave for future writing. No need to worry about it at this time.)
+
+-   Who is the target audience of this manual?
+
+-   What sections are the "must-read" part if you would like to have a quick learning of regexp in R?
+
+# Metacharacters
+
+## Start and End of the Line (`^$`)
+
+`^`: name as "caret", represents the start of the line. It is the position before the first character in the text element.
+
+`$`: name as "dollar", represents the end of the line. It is the position after the very last character in the text element.
+
+Here we will introduce a very commonly-used type of function dealing with regular expression in R: the detect function. This type of function will help match the pattern of regular expressions and return a logical value (`TRUE/FALSE`) indicating whether the input text matches the pattern or not.
+
+In `base` package, the function name is `grepl(pattern, x)`. In `stringr`, the function name is `str_detect(x, pattern)`. Pay attention to the order of input in these two functions.
+
+Another function that is very useful in the following study is `str_view(x, pattern)`. This function gives an output with text of matched pattern highlighted.
+
+Now we have the tools! Let's do some simple practice for the metacharacter `^`!
+
+1.  Where is `^` and `$` in a single text object?
+
+    ```{r}
+    str_view(string = "catfish", pattern = "^")
+    str_view(string = "catfish", pattern = "$")
+    ```
+
+    We can see that `^` is the position before the beginning of the text. `$` is the position after the end of the text.
+
+2.  Where is `^` and `$` in a character vector, or in a sentence?
+
+    ```{r}
+    str_view(string = "I like cat!", pattern = "^")
+    str_view(string = "I like cat!", pattern = "$")
+    str_view(string = c("catfish","dogfish"), pattern = "^")
+    str_view(string = c("catfish","dogfish"), pattern = "$")
+    ```
+
+    Note that the concept of `^` and `$` is based on the unit of a text line, i.e. the content in ONE pair of quotation marks `""`. It is not based on the unit of a word. Therefore, there are two `^` and `$` in the vectors above, while only one for the sentence.
+
+3.  As each of the text element have a start and an end. Does it mean that we will only have `TRUE` value returned when we try to match the `^` and `$` for a text?
+
+    ```{r}
+    grepl(pattern = "^", NA)
+    grepl(pattern = "^", Inf)
+    grepl(pattern = "^", 2)
+    grepl(pattern = "^", 48888888)
+    grepl(pattern = "^", "")
+    grepl(pattern = "^$", "") # to match an empty line
+    ```
+
+    The answer is no. We can see that for `NA` value (same for `NA_character_`, `NA_integer`...) in `R`, there is no start of the sentence. This is also a good way to understand the difference between `NA` and `""`. However, `Inf` has a start. Numeric numbers also have starts. Same for `$`.
+
+4.  How to find the text object that have `cat` at the start? And how to find the text object that have `cat` at the end? We will use `str_detect()` here, but `grepl()` can do the same thing.
+
+    ```{r}
+    str_detect(c("cat","catfish","catelyn","dog","crazycat"),pattern = "^cat")
+    str_detect(c("cat","catfish","catelyn","dog","crazycat"),pattern = "cat$")
+    str_detect(c("cat","catfish","catelyn","dog","crazycat"),pattern = "cat")
+    ```
+
+    We get a vector composed of five logical values! It shows that the first three words begins with `cat`, and the first and the last words end with `cat`. Note that we cannot use pattern `"cat"` to find the exact word `"cat"`. It will return `TRUE` for all the text objects that include `cat` in it.
+
+5.  Here comes the question: what should we do if we want to find the text objects that are exactly `cat`? You should point out the beginning and end very clearly in the pattern:
+
+    ```{r}
+    str_detect(c("cat","catfish","catelyn","dog","crazycat"),pattern = "^cat$")
+    ```
+
+6.  Here, `cat` should be concatenated characters. What if we would like to see if there is a `cat` or a `car` in the text object? We will need to introduce a new concept called character classes.
+
+## Character Classes (`[...]`)
+
+Character classes does not have a single, exact format. Regular expression uses `[...]` to list the character that is allowed at that point in the match. For example,
+
+```{r}
+str_view(c("cat","carfish","catelyn","dog","crazycar"),pattern = "ca[tr]")
+```
+
+Note that `[...]` has an opposite intuitive compared to the characters outside. For those outside characters in the regular expression, the logic is "and then", indicating an ordered relationship with multiple condition met simultaneously. However, for the characters inside the `[...]`, the logic is "or". There is no requirements for order here. We can examine this logic difference using the below examples:
+
+```{r}
+str_view(string = "I hide a ca in this sentence", pattern = "[cat]")
+str_detect(string = "Do you find the ca in this sentence?", pattern = "cat")
+```
+
+You can see that `[cat]` could match all the `c`, `a`, `t` in the text object. However, `cat` requires an exact word `cat` in the text object to be matched.
+
+Some interesting application:
+
+-   match the word with unsure spelling
+
+    ```{r}
+    str_view(string = c("separate","seperate","seperete"), pattern = "s[ea]p[ea]r[ea]te")
+    ```
+
+    Using this way we can match all the `separate` even when it's wrongly spelled.
+
+-   match the word with unsure capitalization of the first letter
+
+    ```{r}
+    str_view(string = c("smith","Smith","blacksmith"), pattern = "[Ss]mith")
+    ```
+
+    Note that we cannot avoid matching `blacksmith` here.
+
+There is an easy way to write the character classes including lots of characters: range. For example,
+
+-   To match all the digits
+
+    ```{r}
+    str_detect(string = c("H1","H2", "H3", "H456"), pattern = c("H[0-9]"))
+    str_view(string = c("H1","H2", "H3", "H456"), pattern = c("H[0-9]"))
+    ```
+
+    One thing to note here is that no matter how long, how wide your character classes are, it can only match one character at that position! Just as what shows above, `H456` cannot be fully matched. `H[0-9]` can only match `H4` here.
+
+-   To match all the lower cases of the first five characters
+
+    ```{r}
+    str_detect(string = c("wdhioqw","dwhuiedc","dbwuiehdu"), pattern = c("[a-e]"))
+    str_view(string = c("wdhioqw","dwhuiedc","dbwuiehdu"), pattern = c("[a-e]"))
+    ```
+
+    It can help find all the a, b, c, d, e.
+
+-   Combination of digits and characters
+
+    ```{r}
+    str_view(string = "123bceiwWQDNBIW", pattern = "[0-9a-z]")
+    ```
+
+    We can match all the digits and lower-case characters use this!
+
+### Negate(`[^...]`)
+
+What if we want to match all the characters that are **not** in one character class? We will use `[^...]`! For example, if we would like to match all the characters that are not digits:
+
+```{r}
+str_view(string = "whedjiencf&^*&^^123", pattern = "[^0-9]")
+```
+
+All the characters that are not digits, including symbols, can be matched.
+
+Note that `^` can refer to "not in this character class" right after the bracket in the classes like `[^...]`.
+
+Quick test: search for odds words that have `q` followed by something other than `u`.
+
+```{r}
+temp <- c("Iraq","Iraqian","miqra","qasida","qintar","qoph","zaqqum%","quarter","quantile")
+grepl(pattern = "q[^u]", x = temp)
+```
+
+One thing to note here: `[^u]` still requires a character class to match, therefore `Iraq` is not matched here. `[^...]` cannot match the end of the text object.
+
+### Any Match (`.`)
+
+We can use `.` to match any single character. It means that any character can be here. For example, if we would like to find any word satisfying the format like cat, cut, cot...
+
+```{r}
+str_detect(string = c("cut","dot","finecut","cat","catfish","cot", "caut"), pattern = "^c.t$")
+```
+
+However, note that if the `.` is within the bracket, it just refers to the symbol `.`. For example:
+
+```{r}
+str_detect(string = c("cut","dot","finecut","cat","catfish","cot","c.t"), pattern = "^c[.]t$")
+```
+
+## Alternation(`|`)
+
+The metacharacter for "or" in regular expressions is `|` . Therefore, pattern `"sep[ea]rate"` actually could be represented by `"sep(e|a)rate"` or `"seperate|separate"`. Pay attention to the parentheses here.
+
+```{r}
+str_view(string = c("seperate","separate","seperete"), pattern = "sep(e|a)rate")
+str_view(string = c("seperate","separate","seperete"), pattern = "sep[ea]rate")
+str_view(string = c("seperate","separate","seperete"), pattern = "seperate|separate")
+```
+
+What is the difference between `|` and `[...]` then? It is the number of character that we can alternate. `[...]` can only alternate one character.
+
+## Case Insensitive (`(?i)`)
+
+Although `[...]` provides a good way for us to do case insensitive match, it is still not so convenient if we would like to have each character in the text to be case insensitive. For example, we would like to match `flower`,`FLOWER`, `Flower`...It is redundant to write `[Ff][Ll][Oo][Ww][Ee][Rr]`...
+
+In `R`, there is an easy way to do this:
+
+```{r}
+str_view(string = c("flower","FLOWER","Flower feel","fLower Feel"), pattern = "(?i)flower")
+```
+
+`(?i)` here is the "switch" to turn on case insensitive option for all the characters on the right side of it. So what if we would like to match case-insensitive `flower feel`?
+
+```{r}
+str_view(string = c("flower","FLOWER","Flower feel","fLower Feel"), pattern = "(?i)flower feel")
+str_view(string = c("flower","FLOWER","Flower feel","fLower Feel"), pattern = "(?i)flower Feel")
+```
+
+These two expressions return the same result, because `(?i)` is applied to all the characters on the right hand side. However, what if we only want case-insensitive to be applied to `flower`? We should find a switch to turn off this option: `(?-i)`
+
+```{r}
+str_view(string = c("flower","FLOWER","Flower feel","fLower Feel"), pattern = "(?i)flower(?-i) feel")
+```
+
+It no longer match `Feel` after we "turn off" the case-insensitive option using `(?-i)`.
+
+Note that case-insensitive has different expressions in different programming language.
+
+## Word Boundary (`\\b`)
+
+We already know that we can match a line composed of an exact word using regular expression like `[^cat$]`. However, how to match a word in the sentence? To do this in `R`:
+
+```{r}
+str_view(string = c("I love cat","I love catfish","Cat loves me"), pattern = "\\b[Cc]at\\b")
+```
+
+Note that in other programming language, `\\b` may be replace by a pair of `\<` `\>`.
+
+## Optional Item (`?`)
+
+Sample question: we would like to match all the expression that represents July 4th.
+
+```{r}
+jul4 <- c("July 4th", "Jul 4th", "July 4", "Jul 4", "July fourth", "Jul Fourth")
+str_view(string = jul4, pattern = "(July?) ([Ff]ourth|4(th)?)")
+```
+
+`y?` and `(th)?` here matches the expression both with and without `y` and `th`.
+
+## Repetition (`*` and `+`)
+
+We can use plus mark (`+`) or asterisk (`*`). The difference is that `*` could also match with space and nothing, but `+` fails if there is no character.
+
+```{r}
+str_view(string = "2348723dddd", pattern = "[0-9]+")
+str_detect(string = "", pattern = "[0-9]+")
+str_detect(string = "", pattern = "[0-9]*")
+```
+
+To trim the text on the right sides, `+` can represent the pattern:
+
+```{r}
+str_view(string = c("   ER32001  ", "ER32002", "ER32003  "), pattern = "[A-Z]+[0-9]+")
+str_extract_all(string = c("   ER32001  ", "ER32002", "ER32003  "), pattern = "[A-Z]+[0-9]+")
+```
+
+But to include the space on two sides, `*` works:
+
+```{r}
+str_view(string = c("   ER32001  ", "ER32002", "ER32003  "), pattern = "[A-Z]*[0-9]*")
+```
+
+For example if we would like to extract the sample size information from the website, while we are not sure about whether there are spaces in-between. We can use `*` to represent the unlimited spaces in-between.
+
+```{r}
+str_view(string = c("Sample Size  = 15", "sample size=17", "Sample size =19"), pattern = "[Ss]ample *[Ss]ize *= *[0-9]*")
+```
+
+What if size is a default attribute. Some of the string are written as `sample = 19`
+
+```{r}
+str_view(string = c("Sample Size  = 15", "sample size=17", "Sample size =19", "sample = 19 "), pattern = "[Ss]ample *([Ss]ize)? *= *[0-9]*")
+```
+
+## Range of Matches - Intervals (`{}`)
+
+We have learnt about how to match unlimited repetition using `*` and `+`. What if we would like to match, say, only 5 characters of that expression? We will need to use the interval limits `{...}` here.
+
+```{r}
+str_view(string = "wenoidowie3377892873", pattern = "[0-9]{1,5}")
+```
+
+## Backreferences(`()`)
+
+We will illustrate the use of backreferences using an example question where we will need to find all the duplicated words in a paragraph.
+
+First of all, let's do the most simple check to see if there are duplicated `the`
+
+```{r}
+str_view(string = "I really   really like the the cat with black fur.", pattern = "\\bthe *the\\b")
+```
+
+However, it is possible that other words also duplicate. What should we do now? We will need to wrap the contents we want to refer to using a pair of parenthesis, and then replace the second duplication using `\\1`
+
+```{r}
+str_view(string = "I really   really like the the cat with black fur.", pattern = "\\b([A-Za-z]+) *\\1\\b")
+```
+
+# Summary of Functions
+
+# Q to Answer
+
+Use of `?`: different when it's outside or inside `[...]`. When it's inside the `[...]`, it will just match the exact question mark, while it's outside of `[...]`, it is a symbol helping match the character before it.
+
+```{r}
+str_view(string = "wdxjiwdxu?", pattern = "xu?")
+str_view(string = "wdwnuexu?ehw", pattern = "[xu?]")
+```
+
+See! In the first match view, `?` itself is not matched!
+
+My own work: how to extract the year and variable name from our dear PSID dataset.
+
+```{r}
+temp <- str_extract_all(string = "[19]ER30001 [21]ER30002 [23]ER30003", pattern = "\\[[0-9]*\\][A-Z]+[0-9]+")[[1]]
+temp1 <- str_extract(string = temp, pattern = "[^(\\[\\])]+")
+temp2 <- str_extract(string = temp, pattern = "(?<=\\])[A-Z0-9]+")
+```
+
+Changes
